@@ -1,28 +1,44 @@
 import {
- type ExtendedPage,
- type ModalRoutes,
- type PageData,
- type PagesRoute,
- type RouterConfig,
+  type ExtendedPage,
+  type PageEntries,
+  type ModalEntries,
+  type ParsedRoute,
+  type PagesRoute,
+  type RouterConfig,
 } from "../types";
 
 const objectIsEmpty = (obj: Record<string, any>) =>
   Object.keys(obj).length === 0;
 
 /**
- * Flatten a nested page config into a list of `{ pathName, data }`,
- * and produce a flat list for modals as well.
+ * Парсить користувацький конфіг роутера у плоскі списки сторінок та модалок.
+ *
+ * **Тип повернення повністю залежить від конфігу `C`**: для кожної сторінки
+ * та модалки зберігаються її власні, унікальні кастомні ключі (`title`,
+ * `icon`, тощо). У результаті `pages` та `modals` — це discriminated union'и
+ * по `pathName`, які можна звужувати:
+ *
+ * ```ts
+ * pages.forEach(({ pathName, data }) => {
+ *   if (pathName === "modules") data.title; // string "Modules"
+ * });
+ * ```
+ *
+ * Якщо ж усі сторінки декларують спільне поле (наприклад, всі мають `title`),
+ * до нього можна звертатись без звуження — TS знає, що воно є на кожній.
  */
-export const createRoute = (config: RouterConfig<any, any>) => {
-  const pagesRoutes: { pathName: string; data: PageData }[] = [];
+export const parseRouteConfig = <C extends RouterConfig<any, any>>(
+  config: C,
+): ParsedRoute<C> => {
+  const pagesRoutes: PageEntries<C["pages"]>[] = [];
 
   const walk = (route: PagesRoute | ExtendedPage, currentPath: string) => {
     Object.entries(route).forEach(([pathName, content]: [string, any]) => {
       if (content?.data) {
         pagesRoutes.push({
           pathName: currentPath + pathName,
-          data: { ...content.data } as PageData,
-        });
+          data: { ...content.data },
+        } as PageEntries<C["pages"]>);
       }
 
       if (
@@ -33,7 +49,7 @@ export const createRoute = (config: RouterConfig<any, any>) => {
       ) {
         const newPath = currentPath + pathName;
         walk(
-          content,
+          content as PagesRoute,
           newPath + (newPath[newPath.length - 1] !== "/" ? "/" : ""),
         );
       }
@@ -42,9 +58,10 @@ export const createRoute = (config: RouterConfig<any, any>) => {
 
   walk(config.pages, "");
 
-  const modalsList = Object.entries(
-    (config.modals || {}) as ModalRoutes,
-  ).map(([pathName, data]) => ({ pathName, data }));
+  const modalsList = Object.entries(config.modals || {}).map(
+    ([pathName, data]) =>
+      ({ pathName, data }) as ModalEntries<C["modals"]>,
+  );
 
   return {
     pages: pagesRoutes,

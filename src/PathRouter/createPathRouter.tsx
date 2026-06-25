@@ -2,7 +2,7 @@ import React, { type ReactNode, type Ref, useContext } from "react";
 
 import { PathContext } from "./Provider/context";
 import { PathProvider as BasePathProvider } from "./Provider/PathProvider";
-import { PathRouterContainer as BasePathRouterContainer } from "./Container/RouterContainer";
+import { PagesContainer as BasePathRouterContainer } from "./Container/RouterContainer";
 import { NavLink as BaseNavLink, type NavLinkProps } from "./NavLink";
 import type {
   ModalNamesOf,
@@ -57,9 +57,9 @@ export const createPathRouter = <const C extends RouterConfig<any, any>>(
     useContext(PathContext) as unknown as PathContextType<C>;
 
   /** Container with `config` already injected. */
-  const PathRouterContainer: React.FC<BoundPathRouterContainerProps> = (
-    props,
-  ) => <BasePathRouterContainer config={config} {...props} />;
+  const PagesContainer: React.FC<BoundPathRouterContainerProps> = (props) => (
+    <BasePathRouterContainer config={config} {...props} />
+  );
 
   /** Typed `NavLink` — `to` / `modal` are autocompleted from your config. */
   const NavLink = BaseNavLink as unknown as (
@@ -89,7 +89,7 @@ export const createPathRouter = <const C extends RouterConfig<any, any>>(
   return {
     /** `BrowserRouter` + context provider — does not depend on the config. */
     PathProvider: BasePathProvider,
-    PathRouterContainer,
+    PagesContainer,
     usePath,
     NavLink,
     getPath,

@@ -66,7 +66,7 @@ import { createPathRouter } from "@/modules/PathRouter";
 
 export const {
   PathProvider,
-  PathRouterContainer,
+  PagesContainer,
   usePath,
   NavLink,
   getPath,
@@ -76,10 +76,10 @@ export const {
 
 ```tsx
 // somewhere near the root
-import { PathProvider, PathRouterContainer } from "@/containers/Router";
+import { PathProvider, PagesContainer } from "@/containers/Router";
 
 <PathProvider>
-  <PathRouterContainer fallback={<Spinner />} />
+  <PagesContainer fallback={<Spinner />} />
 </PathProvider>;
 ```
 
@@ -128,22 +128,26 @@ export const route = {
 } as const;
 ```
 
-- `setPage({ component, redirect? })` wraps the value as `{ data: {...} }`. The `data` field marks the node as a renderable page, but **does not stop** the route builder from descending — children of the same node are still discovered.
-- Pages can be **nested** as plain objects — `createRoute` walks the tree and produces a flat `[{ pathName, data }]` list (see `utils/createRoute.ts`).
+- `setPage` accepts two forms:
+  - **Shorthand**: `setPage(MyComponent)` — equivalent to `setPage({ component: MyComponent })`.
+  - **Full**: `setPage({ component?, redirect?, ...customKeys })` — use when you need `redirect` or extra metadata fields (e.g. a `title` for a sitemap).
+  
+  Both forms wrap the value as `{ data: {...} }`. The `data` field marks the node as a renderable page but **does not stop** the route builder from descending — children of the same node are still discovered.
+- Pages can be **nested** as plain objects — `parseRouteConfig` walks the tree and produces a flat `[{ pathName, data }]` list (see `utils/createRoute.ts`).
 - A node may **simultaneously be a page and a container** for child routes. Spread the result of `setPage` into the node to attach a component at that path while keeping nested keys:
 
   ```ts
   modules: {
-    ...setPage({ component: ModulesIndexPage }), // /modules
-    routing: setPage({ component: RoutingPage }), // /modules/routing
-    "*":     setPage({ component: RoutingPage }), // /modules/*
+    ...setPage(ModulesIndexPage),             // /modules
+    routing: setPage(RoutingPage),            // /modules/routing
+    "*":     setPage({ redirect: "modules" }), // /modules/* → redirect
   }
   ```
 
   This is what enables breadcrumb-style hierarchies where each ancestor segment is itself a page.
 - Recursion into a node stops only when the node itself carries `component` or `redirect` at its top level (i.e. it is a bare leaf, not a `setPage(...)` result). `setPage` puts those fields under `data`, so spreading it never blocks descent.
 - A page with `redirect` (or no `component`) becomes a `<Navigate to={redirect || "/"} replace />`.
-- `setModal({ component })` is just an identity helper that preserves literal types for inference.
+- `setModal` also accepts two forms — `setModal(MyModal)` or `setModal({ component, ...customKeys })`. Unlike `setPage`, modals are stored flat (no `{ data }` wrapper).
 - `as const` is **required** — without it TS widens string keys to `string` and you lose autocompletion.
 
 ### 2. The `createPathRouter` factory
@@ -152,13 +156,13 @@ export const route = {
 
 ```ts
 const {
-  PathProvider,            // BrowserRouter + context
-  PathRouterContainer,     // renders pages + modals (config injected)
-  usePath,                 // typed hook  — no <typeof config> needed
-  NavLink,                 // typed link  — no <typeof config> needed
-  getPath,                 // identity helper: <P extends PathNamesOf<C>>(p: P) => p
-  getModal,                // identity helper: <M extends ModalNamesOf<C>>(m: M) => m
-  config,                  // the original config, re-exported
+  PathProvider,    // BrowserRouter + context
+  PagesContainer,  // renders pages + modals (config injected)
+  usePath,         // typed hook  — no <typeof config> needed
+  NavLink,         // typed link  — no <typeof config> needed
+  getPath,         // identity helper: <P extends PathNamesOf<C>>(p: P) => p
+  getModal,        // identity helper: <M extends ModalNamesOf<C>>(m: M) => m
+  config,          // the original config, re-exported
 } = createPathRouter(route);
 ```
 
@@ -168,23 +172,23 @@ Why re-exports rather than direct imports?
 - Every consumer of the returned API gets autocompletion of routes / modal names with **zero ceremony**.
 - The package itself stays generic and reusable; the binding lives in your app code.
 
-> The factory return values are not re-exported from `@/modules/PathRouter`. The only way to obtain `PathProvider`, `PathRouterContainer`, `usePath`, `NavLink`, `getPath`, `getModal` is via `createPathRouter(config)`.
+> `PathProvider`, `PagesContainer`, `usePath`, `NavLink`, `getPath`, `getModal` are **not re-exported** from `@/modules/PathRouter`. The only way to obtain them is via `createPathRouter(config)`.
 
 ### 3. Mounting
 
 ```tsx
-import { PathProvider, PathRouterContainer } from "@/containers/Router";
+import { PathProvider, PagesContainer } from "@/containers/Router";
 
 <PathProvider>
-  <PathRouterContainer
+  <PagesContainer
     ModalWrapper={MyModalWrapper}   // optional
     fallback={<Spinner />}          // optional Suspense fallback
   />
 </PathProvider>;
 ```
 
-- `PathProvider` mounts a `BrowserRouter` and an inner provider that derives the page path, the modal state and the search params from `useLocation()` (`Provider/PathProvider.tsx`).
-- `PathRouterContainer` renders the pages inside `<Suspense>` and, if a modal is open, mounts `ModalsContainer` next to the page tree. `config` is already injected by the factory — you only pass `ModalWrapper` / `fallback`.
+- `PathProvider` mounts a `BrowserRouter` and an inner provider that derives the page path, the modal state and the search params from `useLocation()` (`Provider/PathProvider.tsx`). It does **not** depend on the config — the factory re-exports it as-is.
+- `PagesContainer` renders the pages inside `<Suspense>` and, if a modal is open, mounts `ModalsContainer` next to the page tree. `config` is already injected by the factory — you only pass `ModalWrapper` / `fallback`.
 
 ### 4. URL shape
 
@@ -289,7 +293,7 @@ import { NavLink } from "@/containers/Router";
 
 ### 8. Page rendering (`RouterContainer.tsx`)
 
-- Calls `createRoute(config)` once (memoised) to flatten the page tree.
+- Calls `parseRouteConfig(config)` once (memoised) to flatten the page tree.
 - Renders a single `<Routes>` switch with one `<Route>` per leaf.
 - If a leaf has no `component` or has a `redirect`, the element becomes `<Navigate to={redirect || "/"} replace />`.
 - The whole switch is wrapped in `<Suspense fallback={fallback}>` so lazy components work transparently.
@@ -363,9 +367,11 @@ The package exposes only what cannot depend on a concrete config:
 
 ### Builders / factory / utilities
 
-- `setPage`, `setModal` — config builders.
-- `createPathRouter(config)` — returns `{ PathProvider, PathRouterContainer, usePath, NavLink, getPath, getModal, config }`.
-- `clearSlash` — path normalizer.
+- `setPage(Component | { component?, redirect?, ...custom })` — page descriptor builder.
+- `setModal(Component | { component, ...custom })` — modal descriptor builder.
+- `createPathRouter(config)` — returns `{ PathProvider, PagesContainer, usePath, NavLink, getPath, getModal, config }`.
+- `parseRouteConfig(config)` — flattens the nested page tree into `{ pages, modals }` arrays; use for sitemaps or debug.
+- `clearSlash(path)` — path normalizer (collapses `//`, ensures leading `/`, strips trailing `/`).
 
 ### Types — config-independent
 
@@ -380,8 +386,18 @@ The package exposes only what cannot depend on a concrete config:
 - `PathNamesOf<C>` — must be used as `PathNamesOf<typeof route>`.
 - `ModalNamesOf<C>` — must be used as `ModalNamesOf<typeof route>`.
 
-> `PathProvider`, `PathRouterContainer`, `usePath`, `NavLink`, `getPath`, `getModal` are **deliberately not exported** from the package — obtain them from `createPathRouter(config)`.
+> `PathProvider`, `PagesContainer`, `usePath`, `NavLink`, `getPath`, `getModal` are **deliberately not exported** from the package — obtain them from `createPathRouter(config)`.
 > `PathContextType` is also not re-exported; the typed shape is available via the return type of the factory's `usePath`.
+
+---
+
+## Limitations
+
+- **CSR only** — `PathProvider` uses `BrowserRouter`; no HashRouter, no SSR (Next.js / Remix).
+- **`/modal/` is reserved** — page paths must not contain this segment; it is used as a URL splitter.
+- **Flat modals, one at a time** — the `modals` config is a flat dict; nested or simultaneous modals are not supported. Use `modalBreadCrumbs` for intra-modal navigation.
+- **No built-in animation** — modals appear/disappear instantly without a `ModalWrapper`.
+- **TS recursion depth** — `PageEntries` is capped at 8 nesting levels; deeper trees compile but may lose path autocompletion.
 
 ---
 
@@ -392,18 +408,18 @@ import { setPage, setModal, createPathRouter } from "@/modules/PathRouter";
 
 const route = {
   pages: {
-    "/":  setPage({ component: HomePage }),
-    add:  setPage({ component: AddItemPage }),
-    "*":  setPage({ redirect: "/" }),
+    "/":  setPage(HomePage),                  // shorthand
+    add:  setPage(AddItemPage),
+    "*":  setPage({ redirect: "/" }),          // redirect form
   },
   modals: {
-    confirm: setModal({ component: ConfirmModal }),
+    confirm: setModal(ConfirmModal),           // shorthand
   },
 } as const;
 
 export const {
   PathProvider,
-  PathRouterContainer,
+  PagesContainer,
   usePath,
   NavLink,
   getPath,
@@ -412,7 +428,7 @@ export const {
 
 export const App = () => (
   <PathProvider>
-    <PathRouterContainer />
+    <PagesContainer fallback={<Spinner />} />
   </PathProvider>
 );
 

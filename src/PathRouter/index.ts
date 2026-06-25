@@ -49,31 +49,16 @@ export type {
 export { clearSlash } from "./utils/clearSlash";
 
 /*
- * Public types.
+ * All public types are grouped in the `types` namespace to avoid polluting
+ * function autocomplete:
  *
- * Note on config-dependent generics: `PathNamesOf<C>` and `ModalNamesOf<C>`
- * REQUIRE the config generic — there is no default. Use them as
- * `PathNamesOf<typeof config>` etc.
+ *   import { createPathRouter } from "@/modules/PathRouter";
+ *   import type { types } from "@/modules/PathRouter";
  *
- * `PathContextType` is intentionally not re-exported — get a typed context
- * shape via the `usePath` returned by `createPathRouter(config)`.
+ *   function setup(config: types.RouterConfig) { ... }
+ *
+ * Alternatively, import directly from the types entrypoint:
+ *
+ *   import type { RouterConfig } from "@/modules/PathRouter/types";
  */
-export type {
-  /* Config shape */
-  RouterConfig,
-  PageData,
-  ModalData,
-  /* Props passed to a modal component */
-  ModalProps,
-  /* Config-dependent helpers (require <typeof config>) */
-  PathNamesOf,
-  ModalNamesOf,
-  /* Context sub-shapes */
-  ModalState,
-  SearchParams,
-  SearchParamsState,
-  /* `ModalWrapper` plugin contract */
-  ModalWrapperComponent,
-  ModalWrapperProps,
-  ModalWrapperRef,
-} from "./types";
+export * as types from "./types";

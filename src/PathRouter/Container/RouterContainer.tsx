@@ -2,7 +2,7 @@ import React, { type ReactNode, Suspense, useMemo } from "react";
 import { Routes as Switch, Route, Navigate } from "react-router-dom";
 
 import { usePath } from "../Provider/usePath";
-import { createRoute } from "../utils/createRoute";
+import { parseRouteConfig } from "../utils/createRoute";
 
 import { ModalsContainer } from "./ModalsContainer";
 import type { ModalWrapperComponent, RouterConfig } from "../types";
@@ -20,14 +20,14 @@ export interface PathRouterProps<C extends RouterConfig<any, any>> {
   fallback?: ReactNode;
 }
 
-export const PathRouterContainer = <C extends RouterConfig<any, any>>({
+export const PagesContainer = <C extends RouterConfig<any, any>>({
   config,
   ModalWrapper,
   fallback = null,
 }: PathRouterProps<C>) => {
   const { modal } = usePath();
 
-  const { pages, modals } = useMemo(() => createRoute(config), [config]);
+  const { pages, modals } = useMemo(() => parseRouteConfig(config), [config]);
 
   return (
     <>

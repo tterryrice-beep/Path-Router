@@ -4,7 +4,7 @@ import type {
   ReactNode,
   RefAttributes,
 } from "react";
-import type { Location, NavigateOptions } from "react-router-dom";
+import type {  NavigateOptions } from "react-router-dom";
 
 /* ───────────────────────── Generic helpers ───────────────────────── */
 
@@ -18,23 +18,28 @@ export type NestedKeyOf<ObjectType extends object, StopKey extends string> = {
 
 /* ───────────────────────── Page / Modal data ───────────────────────── */
 
-export type PageData = {
-  component?: ComponentType<any> | LazyExoticComponent<ComponentType<any>>;
+export type PageComponent =
+  | ComponentType<any>
+  | LazyExoticComponent<ComponentType<any>>;
+export type PageData<O = Record<string, unknown>> = {
+  component?: PageComponent;
   redirect?: string;
-} & Record<string, any>;
+} & O;
 
 export interface ModalProps {
   onClose: () => void;
 }
 
-export interface ModalData {
-  component?:
-    | ComponentType<ModalProps>
-    | LazyExoticComponent<ComponentType<ModalProps>>;
-}
+export type ModalComponent =
+  | ComponentType<ModalProps>
+  | LazyExoticComponent<ComponentType<ModalProps>>;
 
-export interface PageContent {
-  data?: PageData;
+export type ModalData<O = Record<string, unknown>> = {
+  component?: ModalComponent;
+} & O;
+
+export interface PageContent<O = Record<string, unknown>> {
+  data?: PageData<O>;
 }
 
 export interface BreadCrumbsPage {
@@ -47,7 +52,10 @@ export interface PagesRoute {
   [path: string]: ExtendedPage;
 }
 
-export type ModalRoutes = Record<string, ModalData>;
+export type ModalRoutes<O = Record<string, unknown>> = Record<
+  string,
+  ModalData<O>
+>;
 
 /* ───────────────────────── Router config ───────────────────────── */
 
@@ -66,6 +74,66 @@ export type PathNamesOf<C extends RouterConfig<any, any>> =
 /** Extract typed modal names from a user config. */
 export type ModalNamesOf<C extends RouterConfig<any, any>> =
   C extends RouterConfig<any, infer M> ? Extract<keyof M, string> : string;
+
+/* ───────────────── Parsed entries (per-page / per-modal types) ─────────────── */
+
+/** Хелпер: склеює префікс шляху з наступним сегментом без подвійного "/". */
+type JoinPath<P extends string, K extends string> = P extends ""
+  ? K
+  : `${P}/${K}`;
+
+/**
+ * Лічильник для обмеження глибини рекурсії в `PageEntries`.
+ * Покриває реалістичну глибину дерева сторінок (до 8 рівнів вкладеності).
+ * Без цього TS падає з "Type instantiation is excessively deep".
+ */
+type Prev = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8];
+
+/**
+ * Рекурсивно обходить дерево сторінок з юзерського конфігу та повертає
+ * **discriminated union** виду `{ pathName: <literal>; data: <exact data shape> }`
+ * для кожної ноди, де є `data`.
+ *
+ * Завдяки цьому, при подальшому споживанні (мапа сайту, debug-таблиця тощо),
+ * TS точно знає, які кастомні ключі є у `data` кожної конкретної сторінки —
+ * їх можна звужувати через `if (pathName === "...")`.
+ */
+export type PageEntries<
+  T,
+  P extends string = "",
+  Depth extends number = 8,
+> = Depth extends 0
+  ? never
+  :
+      | (T extends { data: infer D }
+          ? { pathName: P; data: Partial<D> & PageData<{}> }
+          : never)
+      | (T extends object
+          ? {
+              [K in Exclude<keyof T, "data"> & string]: T[K] extends object
+                ? PageEntries<T[K], JoinPath<P, K>, Prev[Depth]>
+                : never;
+            }[Exclude<keyof T, "data"> & string]
+          : never);
+
+/**
+ * Discriminated union для модалок. Модалки — плоский dict, тому простіше:
+ * `{ pathName: <literal modal key>; data: <exact ModalData shape> }`.
+ *
+ * Перетинаємо з `ModalData<{}>`, щоб базові поля (`component?`) лишались
+ * доступними на будь-якому варіанті union'у.
+ */
+export type ModalEntries<M> = M extends object
+  ? {
+      [K in keyof M & string]: { pathName: K; data: M[K] & ModalData<{}> };
+    }[keyof M & string]
+  : never;
+
+/** Виводить тип повернення `parseRouteConfig` для конфігу `C`. */
+export interface ParsedRoute<C extends RouterConfig<any, any>> {
+  pages: PageEntries<C["pages"]>[];
+  modals: ModalEntries<C["modals"]>[];
+}
 
 /* ───────────────────────── Path context ───────────────────────── */
 
@@ -109,7 +177,7 @@ export interface PathContextType<
     delete: (key: string) => void;
     clear: () => void;
   };
-  defaultLocation: Location;
+  // defaultLocation: Location;
 }
 
 /* ───────────────────────── Modal wrapper plugin ───────────────────────── */
@@ -137,3 +205,7 @@ export interface ModalWrapperProps {
 export type ModalWrapperComponent = ComponentType<
   ModalWrapperProps & RefAttributes<ModalWrapperRef>
 >;
+
+export interface PropsWithChildren {
+  children?: ReactNode;
+}

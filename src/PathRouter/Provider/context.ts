@@ -21,13 +21,6 @@ const defaultValues: PathContextType = {
     clear: () => {},
     delete: () => {},
   },
-  defaultLocation: {
-    hash: "",
-    key: "",
-    pathname: "",
-    search: "",
-    state: {},
-  },
 };
 
 export const PathContext = createContext<PathContextType>(defaultValues);

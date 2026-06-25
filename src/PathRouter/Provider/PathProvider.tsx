@@ -1,4 +1,4 @@
-import React, { type FC, type ReactNode, useCallback, useMemo } from "react";
+import React, { type FC,  useCallback, useMemo } from "react";
 import {
   BrowserRouter,
   type Location,
@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 
 import {
+  PropsWithChildren,
   type ModalState,
   type PathContextType,
   type SearchParams,
@@ -18,13 +19,10 @@ import { clearSlash } from "../utils/clearSlash";
 import { parseSearchParams } from "../utils/parseSearch";
 import { PathContext } from "./context";
 
-export interface PathProviderProps {
-  children?: ReactNode;
-}
 
 const modalSplitter = "/modal/";
 
-const InnerProvider: FC<PathProviderProps> = ({ children }) => {
+const InnerProvider: FC<PropsWithChildren> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -211,7 +209,7 @@ const InnerProvider: FC<PathProviderProps> = ({ children }) => {
  * Wraps the application with `BrowserRouter` and the `PathContext`.
  * Place this near the root of your component tree.
  */
-export const PathProvider: FC<PathProviderProps> = ({ children }) => {
+export const PathProvider: FC<PropsWithChildren> = ({ children }) => {
   return (
     <BrowserRouter>
       <InnerProvider>{children}</InnerProvider>
