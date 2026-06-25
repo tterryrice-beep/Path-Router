@@ -1,4 +1,5 @@
 # PathRouter
+[![npm version](https://img.shields.io/npm/v/path-router-red)](https://www.npmjs.com/package/path-router-red)
 
 A small, type-safe routing layer built on top of `react-router-dom` that adds:
 
@@ -43,9 +44,9 @@ PathRouter/
 
 ```ts
 // src/config/route.ts
-import { setPage, setModal } from "@/modules/PathRouter";
-import { HomePage, AddPage, NotFoundPage } from "@/Pages";
-import { TestModal } from "@/Modals/Test";
+import { setPage, setModal } from "path-router-red";
+import { HomePage, AddPage, NotFoundPage } from "/Pages";
+import { AuthModal } from "/Modals/Auth";
 
 export const route = {
   pages: {
@@ -54,15 +55,15 @@ export const route = {
     "*":   setPage({ component: NotFoundPage }),
   },
   modals: {
-    test: setModal({ component: TestModal }),
+    auth: setModal({ component: AuthModal }),
   },
 } as const;
 ```
 
 ```ts
 // src/containers/Router/PathProvider.tsx
-import { route } from "@/config";
-import { createPathRouter } from "@/modules/PathRouter";
+import { createPathRouter } from "path-router-red";
+import { route } from "/config";
 
 export const {
   PathProvider,
@@ -76,7 +77,7 @@ export const {
 
 ```tsx
 // somewhere near the root
-import { PathProvider, PagesContainer } from "@/containers/Router";
+import { PathProvider, PagesContainer } from "/containers/Router";
 
 <PathProvider>
   <PagesContainer fallback={<Spinner />} />
@@ -85,13 +86,13 @@ import { PathProvider, PagesContainer } from "@/containers/Router";
 
 ```tsx
 // any component
-import { usePath, NavLink } from "@/containers/Router";
+import { usePath, NavLink } from "/containers/Router";
 
 const Foo = () => {
   const { page, modal } = usePath();   // no <typeof config> generic needed!
   page.navigate("add");                 // ✓ autocompleted
-  modal.open("test");                   // ✓ autocompleted
-  return <NavLink to="home" modal="test">Open</NavLink>;
+  modal.open("auth");                   // ✓ autocompleted
+  return <NavLink to="home" modal="auth">Open</NavLink>;
 };
 ```
 
@@ -104,7 +105,7 @@ const Foo = () => {
 The config is a plain object with two sections — `pages` and `modals`:
 
 ```ts
-import { setPage, setModal } from "@/modules/PathRouter";
+import { setPage, setModal } from "path-router-red";
 
 export const route = {
   pages: {
@@ -122,7 +123,7 @@ export const route = {
     "*":   setPage({ component: NotFoundPage }),
   },
   modals: {
-    test:    setModal({ component: TestModal }),
+    auth:    setModal({ component: AuthModal }),
     confirm: setModal({ component: ConfirmModal }),
   },
 } as const;
@@ -131,7 +132,7 @@ export const route = {
 - `setPage` accepts two forms:
   - **Shorthand**: `setPage(MyComponent)` — equivalent to `setPage({ component: MyComponent })`.
   - **Full**: `setPage({ component?, redirect?, ...customKeys })` — use when you need `redirect` or extra metadata fields (e.g. a `title` for a sitemap).
-  
+
   Both forms wrap the value as `{ data: {...} }`. The `data` field marks the node as a renderable page but **does not stop** the route builder from descending — children of the same node are still discovered.
 - Pages can be **nested** as plain objects — `parseRouteConfig` walks the tree and produces a flat `[{ pathName, data }]` list (see `utils/createRoute.ts`).
 - A node may **simultaneously be a page and a container** for child routes. Spread the result of `setPage` into the node to attach a component at that path while keeping nested keys:
@@ -177,7 +178,7 @@ Why re-exports rather than direct imports?
 ### 3. Mounting
 
 ```tsx
-import { PathProvider, PagesContainer } from "@/containers/Router";
+import { PathProvider, PagesContainer } from "/containers/Router";
 
 <PathProvider>
   <PagesContainer
@@ -220,7 +221,7 @@ This means modals are **bookmarkable and shareable** out of the box and the brow
 ### 5. The `usePath` hook (from the factory)
 
 ```ts
-import { usePath } from "@/containers/Router";
+import { usePath } from "/containers/Router";
 
 const { page, modal, searchParams } = usePath();   // already typed!
 
@@ -247,10 +248,10 @@ searchParams.clear();
 When you need a typed path or modal-name literal somewhere outside JSX (e.g. inside a side-effect, a redux thunk, a `redirect` field of another page), use the identity helpers returned by the factory:
 
 ```ts
-import { getPath, getModal } from "@/containers/Router";
+import { getPath, getModal } from "/containers/Router";
 
 const target = getPath("home");      // type: "home"
-const which  = getModal("test");     // type: "test"
+const which  = getModal("auth");     // type: "auth"
 
 // Compile-time error: argument is not assignable to PathNamesOf<typeof route>
 const bad = getPath("does-not-exist");
@@ -268,8 +269,8 @@ type ModalNames = Parameters<typeof getModal>[0];
 …or use the package-level generics with an explicit config:
 
 ```ts
-import type { PathNamesOf, ModalNamesOf } from "@/modules/PathRouter";
-import type { route } from "@/config";
+import type { PathNamesOf, ModalNamesOf } from "path-router-red";
+import type { route } from "/config";
 
 type PathNames  = PathNamesOf<typeof route>;
 type ModalNames = ModalNamesOf<typeof route>;
@@ -278,10 +279,10 @@ type ModalNames = ModalNamesOf<typeof route>;
 ### 7. `NavLink` (from the factory)
 
 ```tsx
-import { NavLink } from "@/containers/Router";
+import { NavLink } from "/containers/Router";
 
 <NavLink to="home">Home</NavLink>
-<NavLink modal="test">Open test modal</NavLink>
+<NavLink modal="auth">Open auth modal</NavLink>
 <NavLink to="users" modal="confirm" modalBreadCrumbs={["step-2"]}>
   Users + confirm at step 2
 </NavLink>
@@ -329,7 +330,7 @@ Modal components themselves receive `ModalProps` (`{ onClose: () => void }`):
 
 ```tsx
 import type { FC } from "react";
-import type { ModalProps } from "@/modules/PathRouter";
+import type { ModalProps } from "path-router-red";
 
 export const TestModal: FC<ModalProps> = ({ onClose }) => (
   <button onClick={onClose}>Close</button>
@@ -404,7 +405,7 @@ The package exposes only what cannot depend on a concrete config:
 ## Minimal end-to-end example
 
 ```tsx
-import { setPage, setModal, createPathRouter } from "@/modules/PathRouter";
+import { setPage, setModal, createPathRouter } from "path-router-red";
 
 const route = {
   pages: {
