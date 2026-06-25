@@ -1,0 +1,28 @@
+{
+  "name": "facilitators-tr",
+  "version": "0.0.2",
+  "description": "Inherited Classes to Simplify Work",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": [],
+  "author": "RED_TR",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tterryrice-beep/facilitators-tr.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tterryrice-beep/facilitators-tr/issues"
+  },
+  "homepage": "https://github.com/tterryrice-beep/facilitators-tr#readme",
+  "devDependencies": {
+    "@types/events": "^3.0.3",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "events": "^3.3.0"
+  }
+}
